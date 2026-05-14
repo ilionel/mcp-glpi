@@ -362,6 +362,8 @@ function assertValidItemtype(itemtype: string): void {
 export class GlpiClient {
   private config: GlpiConfig;
   private sessionToken: string | null = null;
+  // Shared promise to serialize concurrent session reconnections on 401.
+  private _reconnectPromise: Promise<string> | null = null;
 
   constructor(config: GlpiConfig) {
     this.config = config;
@@ -393,9 +395,16 @@ export class GlpiClient {
     };
 
     let resp = await doFetch(options);
-    if (resp.status === 401 && this.sessionToken) {
-      this.sessionToken = null;
-      await this.initSession();
+    if (resp.status === 401) {
+      // Serialize concurrent reconnections: if another request already triggered
+      // a reconnect, piggyback on its promise instead of calling initSession() twice.
+      if (!this._reconnectPromise) {
+        this.sessionToken = null;
+        this._reconnectPromise = this.initSession().finally(() => {
+          this._reconnectPromise = null;
+        });
+      }
+      await this._reconnectPromise;
       resp = await doFetch({ ...options, headers: this.getHeaders() });
     }
     return resp;

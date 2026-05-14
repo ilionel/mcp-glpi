@@ -7,6 +7,8 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import express from 'express';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -2261,31 +2263,80 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   }
 });
 
+// HTTP mode — StreamableHTTP transport (MCP spec 2025-03-26)
+async function startHttp(): Promise<void> {
+  const port = parseInt(process.env.PORT ?? '3000', 10);
+  const authToken = process.env.MCP_AUTH_TOKEN ?? '';
+
+  if (!authToken) {
+    console.error('WARNING: MCP_AUTH_TOKEN not set — /mcp endpoint is unprotected');
+  }
+
+  const app = express();
+  app.use(express.json());
+
+  // Health check — no auth required
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', version: '2.0.0' });
+  });
+
+  // Bearer token auth for /mcp
+  if (authToken) {
+    app.use('/mcp', (req, res, next) => {
+      const auth = req.headers.authorization ?? '';
+      if (auth !== `Bearer ${authToken}`) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      next();
+    });
+  }
+
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => crypto.randomUUID(),
+  });
+
+  await server.connect(transport);
+  console.error(`MCP GLPI Server v2.0 listening on http://0.0.0.0:${port}/mcp`);
+
+  // Single endpoint — handles GET (SSE stream), POST (requests), DELETE (session close)
+  app.all('/mcp', async (req, res) => {
+    try {
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+  });
+
+  app.listen(port, '0.0.0.0');
+}
+
 // Main function
 async function main() {
   try {
     const config = getConfig();
     glpiClient = new GlpiClient(config);
-
-    // Initialize session
     await glpiClient.initSession();
     console.error('GLPI session initialized successfully');
 
-    // Start the server
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error('MCP GLPI Server v2.0 running on stdio');
-
-    // Handle shutdown
     process.on('SIGINT', async () => {
       await glpiClient.killSession();
       process.exit(0);
     });
-
     process.on('SIGTERM', async () => {
       await glpiClient.killSession();
       process.exit(0);
     });
+
+    if ((process.env.MCP_TRANSPORT ?? 'stdio') === 'http') {
+      await startHttp();
+    } else {
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+      console.error('MCP GLPI Server v2.0 running on stdio');
+    }
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
