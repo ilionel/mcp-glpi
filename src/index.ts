@@ -1021,15 +1021,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // ==================== SEARCH TOOL ====================
       {
         name: 'glpi_search',
-        description: 'Advanced search for items in GLPI using criteria',
+        description: 'Advanced search for items in GLPI using one or more criteria (AND/OR)',
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
             itemtype: { type: 'string', description: 'Type of item to search (Ticket, User, Computer, Software, Problem, Change, etc.)' },
-            field: { type: 'number', description: 'Field ID to search on' },
-            searchtype: { type: 'string', enum: ['contains', 'equals', 'notequals', 'lessthan', 'morethan', 'under', 'notunder'], description: 'Type of search' },
-            value: { type: 'string', description: 'Value to search for' },
+            field: { type: 'number', description: 'Field ID for the first criterion' },
+            searchtype: { type: 'string', enum: ['contains', 'equals', 'notequals', 'lessthan', 'morethan', 'under', 'notunder'], description: 'Search type for first criterion' },
+            value: { type: 'string', description: 'Value for the first criterion' },
+            criteria: {
+              type: 'array',
+              description: 'Additional criteria to combine with the first (default link: AND)',
+              items: {
+                type: 'object',
+                properties: {
+                  field: { type: 'number', description: 'Field ID' },
+                  searchtype: { type: 'string', enum: ['contains', 'equals', 'notequals', 'lessthan', 'morethan', 'under', 'notunder'] },
+                  value: { type: 'string', description: 'Value to match' },
+                  link: { type: 'string', enum: ['AND', 'OR'], description: 'Logical operator with previous criterion (default: AND)' },
+                },
+                required: ['field', 'searchtype', 'value'],
+              },
+            },
           },
           required: ['itemtype', 'field', 'searchtype', 'value'],
         },
@@ -1050,6 +1064,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const tickets = await glpiClient.getTickets({
           range: `0-${limit - 1}`,
           order: (args?.order as 'ASC' | 'DESC') || 'DESC',
+          searchText: args?.status !== undefined ? { status: String(args.status) } : undefined,
         });
 
         const formattedTickets = tickets.map((t: any) => ({
@@ -2027,9 +2042,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new McpError(ErrorCode.InvalidParams, 'itemtype, field, searchtype, and value are required');
         }
 
-        const results = await glpiClient.search(itemtype, [
-          { field, searchtype: searchtype as any, value },
-        ]);
+        type Criterion = { field: number; searchtype: 'contains' | 'equals' | 'notequals' | 'lessthan' | 'morethan' | 'under' | 'notunder'; value: string; link?: 'AND' | 'OR' };
+        const criteria: Criterion[] = [{ field, searchtype: searchtype as Criterion['searchtype'], value }];
+
+        if (Array.isArray(args?.criteria)) {
+          for (const c of args.criteria as any[]) {
+            criteria.push({
+              field: c.field as number,
+              searchtype: c.searchtype as Criterion['searchtype'],
+              value: c.value as string,
+              link: (c.link as 'AND' | 'OR') ?? 'AND',
+            });
+          }
+        }
+
+        const results = await glpiClient.search(itemtype, criteria);
 
         return {
           content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],

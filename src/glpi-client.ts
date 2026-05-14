@@ -382,6 +382,16 @@ export class GlpiClient {
     return headers;
   }
 
+  private async fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
+    let resp = await fetch(url, options);
+    if (resp.status === 401 && this.sessionToken) {
+      this.sessionToken = null;
+      await this.initSession();
+      resp = await fetch(url, { ...options, headers: this.getHeaders() });
+    }
+    return resp;
+  }
+
   async initSession(): Promise<string> {
     const headers = this.getHeaders(false);
 
@@ -467,7 +477,7 @@ export class GlpiClient {
       });
     }
 
-    const response = await fetch(`${this.config.url}/apirest.php/${itemtype}?${params.toString()}`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/${itemtype}?${params.toString()}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -509,7 +519,7 @@ export class GlpiClient {
     if (options.with_connections) params.append('with_connections', 'true');
     if (options.with_disks) params.append('with_disks', 'true');
 
-    const response = await fetch(`${this.config.url}/apirest.php/${itemtype}/${id}?${params.toString()}`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/${itemtype}/${id}?${params.toString()}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -524,7 +534,7 @@ export class GlpiClient {
   private async createItem<T>(itemtype: string, data: Record<string, any>): Promise<{ id: number; message?: string }> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/${itemtype}`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/${itemtype}`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ input: data }),
@@ -541,7 +551,7 @@ export class GlpiClient {
   private async updateItem(itemtype: string, id: number, data: Record<string, any>): Promise<boolean> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/${itemtype}/${id}`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/${itemtype}/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify({ input: data }),
@@ -561,7 +571,7 @@ export class GlpiClient {
     if (force) params.append('force_purge', '1');
     if (!history) params.append('history', '0');
 
-    const response = await fetch(`${this.config.url}/apirest.php/${itemtype}/${id}?${params.toString()}`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/${itemtype}/${id}?${params.toString()}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -575,7 +585,7 @@ export class GlpiClient {
 
   // ==================== TICKETS ====================
 
-  async getTickets(options: { range?: string; sort?: number; order?: 'ASC' | 'DESC'; is_deleted?: boolean } = {}) {
+  async getTickets(options: { range?: string; sort?: number; order?: 'ASC' | 'DESC'; is_deleted?: boolean; searchText?: Record<string, string> } = {}) {
     return this.getItems<GlpiTicket>('Ticket', options);
   }
 
@@ -612,7 +622,7 @@ export class GlpiClient {
   async addTicketFollowup(ticketId: number, content: string, isPrivate: boolean = false): Promise<{ id: number }> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/ITILFollowup`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/ITILFollowup`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -644,7 +654,7 @@ export class GlpiClient {
   } = {}): Promise<{ id: number }> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/TicketTask`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/TicketTask`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -673,7 +683,7 @@ export class GlpiClient {
   async addTicketSolution(ticketId: number, content: string, solutiontypes_id?: number): Promise<{ id: number }> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/ITILSolution`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/ITILSolution`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -697,7 +707,7 @@ export class GlpiClient {
   async getTicketFollowups(ticketId: number): Promise<any[]> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/Ticket/${ticketId}/ITILFollowup`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/Ticket/${ticketId}/ITILFollowup`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -712,7 +722,7 @@ export class GlpiClient {
   async getTicketTasks(ticketId: number): Promise<any[]> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/Ticket/${ticketId}/TicketTask`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/Ticket/${ticketId}/TicketTask`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -731,7 +741,7 @@ export class GlpiClient {
   }): Promise<{ id: number }> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/Ticket_User`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/Ticket_User`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -863,7 +873,7 @@ export class GlpiClient {
   async addUserToGroup(userId: number, groupId: number, isManager: boolean = false): Promise<{ id: number }> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/Group_User`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/Group_User`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({
@@ -1029,7 +1039,7 @@ export class GlpiClient {
   async searchKnowbase(query: string): Promise<GlpiKnowbaseItem[]> {
     await this.ensureSession();
 
-    const response = await fetch(
+    const response = await this.fetchWithRetry(
       `${this.config.url}/apirest.php/search/KnowbaseItem?criteria[0][field]=6&criteria[0][searchtype]=contains&criteria[0][value]=${encodeURIComponent(query)}`,
       {
         method: 'GET',
@@ -1195,7 +1205,7 @@ export class GlpiClient {
       }
     });
 
-    const response = await fetch(
+    const response = await this.fetchWithRetry(
       `${this.config.url}/apirest.php/search/${itemtype}?${params.toString()}`,
       {
         method: 'GET',
@@ -1268,7 +1278,7 @@ export class GlpiClient {
   async getMyProfiles(): Promise<any[]> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/getMyProfiles`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/getMyProfiles`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -1283,7 +1293,7 @@ export class GlpiClient {
   async getActiveProfile(): Promise<any> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/getActiveProfile`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/getActiveProfile`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -1298,7 +1308,7 @@ export class GlpiClient {
   async getMyEntities(): Promise<any[]> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/getMyEntities`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/getMyEntities`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -1313,7 +1323,7 @@ export class GlpiClient {
   async getFullSession(): Promise<any> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.config.url}/apirest.php/getFullSession`, {
+    const response = await this.fetchWithRetry(`${this.config.url}/apirest.php/getFullSession`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
