@@ -66,6 +66,10 @@ function getConfig(): GlpiConfig {
     throw new Error('GLPI_URL environment variable is required');
   }
 
+  if (url.startsWith('http://') && !url.includes('localhost') && !url.includes('127.0.0.1')) {
+    console.error('WARNING: GLPI_URL uses HTTP — credentials will be sent in cleartext. Use HTTPS in production.');
+  }
+
   return {
     url,
     appToken: process.env.GLPI_APP_TOKEN,
@@ -80,6 +84,7 @@ const server = new Server(
   {
     name: 'mcp-glpi',
     version: '2.0.0',
+    title: 'GLPI ITSM Server',
   },
   {
     capabilities: {
@@ -99,6 +104,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_tickets',
         description: 'List tickets from GLPI with optional filters',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -111,6 +117,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_ticket',
         description: 'Get detailed information about a specific ticket including followups and tasks',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -154,6 +161,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_delete_ticket',
         description: 'Delete a ticket (move to trash or permanently delete)',
+        annotations: { destructiveHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -221,6 +229,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_ticket_tasks',
         description: 'Get all tasks for a ticket',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -232,6 +241,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_ticket_followups',
         description: 'Get all followups/comments for a ticket',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -245,6 +255,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_problems',
         description: 'List problems from GLPI (ITIL Problem Management)',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -256,6 +267,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_problem',
         description: 'Get detailed information about a specific problem',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -300,6 +312,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_changes',
         description: 'List changes from GLPI (ITIL Change Management)',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -311,6 +324,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_change',
         description: 'Get detailed information about a specific change',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -354,6 +368,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_computers',
         description: 'List computers/workstations from GLPI inventory',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -365,6 +380,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_computer',
         description: 'Get detailed information about a specific computer including software and connections',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -414,6 +430,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_delete_computer',
         description: 'Delete a computer from inventory',
+        annotations: { destructiveHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -428,6 +445,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_softwares',
         description: 'List software from GLPI inventory',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -438,6 +456,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_software',
         description: 'Get detailed information about a specific software',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -465,6 +484,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_network_equipments',
         description: 'List network equipment (switches, routers, etc.)',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -475,6 +495,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_network_equipment',
         description: 'Get detailed information about a network equipment',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -489,6 +510,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_printers',
         description: 'List printers from GLPI inventory',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -499,6 +521,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_printer',
         description: 'Get detailed information about a printer',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -512,6 +535,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_monitors',
         description: 'List monitors from GLPI inventory',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -522,6 +546,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_monitor',
         description: 'Get detailed information about a monitor',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -535,6 +560,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_phones',
         description: 'List phones from GLPI inventory',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -545,6 +571,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_phone',
         description: 'Get detailed information about a phone',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -558,6 +585,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_knowbase',
         description: 'List knowledge base articles',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -568,6 +596,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_knowbase_item',
         description: 'Get a specific knowledge base article',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -579,6 +608,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_search_knowbase',
         description: 'Search knowledge base articles',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -606,6 +636,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_contracts',
         description: 'List contracts from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -616,6 +647,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_contract',
         description: 'Get detailed information about a contract',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -645,6 +677,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_suppliers',
         description: 'List suppliers from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -655,6 +688,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_supplier',
         description: 'Get detailed information about a supplier',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -686,6 +720,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_locations',
         description: 'List locations from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -696,6 +731,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_location',
         description: 'Get detailed information about a location',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -726,6 +762,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_projects',
         description: 'List projects from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -736,6 +773,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_project',
         description: 'Get detailed information about a project',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -783,6 +821,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_users',
         description: 'List users from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -794,6 +833,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_user',
         description: 'Get detailed information about a specific user',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -805,6 +845,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_search_user',
         description: 'Search for a user by name',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -835,6 +876,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_groups',
         description: 'List groups from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -845,6 +887,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_group',
         description: 'Get detailed information about a specific group',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -885,6 +928,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_categories',
         description: 'List ticket categories from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -897,6 +941,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_entities',
         description: 'List entities from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -907,6 +952,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_entity',
         description: 'Get detailed information about an entity',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -920,6 +966,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_list_documents',
         description: 'List documents from GLPI',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -930,6 +977,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_document',
         description: 'Get detailed information about a document',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {
@@ -943,6 +991,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_ticket_stats',
         description: 'Get ticket statistics (counts by status)',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {},
@@ -951,6 +1000,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_asset_stats',
         description: 'Get asset inventory statistics',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {},
@@ -961,6 +1011,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_get_session_info',
         description: 'Get current session information (profile, entities, permissions)',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {},
@@ -971,6 +1022,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'glpi_search',
         description: 'Advanced search for items in GLPI using criteria',
+        annotations: { readOnlyHint: true },
         inputSchema: {
           type: 'object',
           properties: {

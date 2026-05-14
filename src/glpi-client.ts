@@ -340,6 +340,21 @@ export interface GlpiDocument {
   entities_id: number;
 }
 
+// ==================== VALIDATION ====================
+
+const VALID_ITEMTYPES = new Set([
+  'Ticket', 'Problem', 'Change', 'Computer', 'Software', 'NetworkEquipment',
+  'Printer', 'Monitor', 'Phone', 'User', 'Group', 'KnowbaseItem', 'Contract',
+  'Supplier', 'Location', 'Entity', 'Project', 'Document', 'ITILCategory',
+  'TicketTask', 'ITILFollowup', 'ITILSolution', 'Ticket_User', 'Group_User',
+]);
+
+function assertValidItemtype(itemtype: string): void {
+  if (!VALID_ITEMTYPES.has(itemtype)) {
+    throw new Error(`Invalid or unsupported itemtype: "${itemtype}". Allowed: ${[...VALID_ITEMTYPES].join(', ')}`);
+  }
+}
+
 // ==================== CLIENT ====================
 
 export class GlpiClient {
@@ -1167,6 +1182,7 @@ export class GlpiClient {
     value: string;
     link?: 'AND' | 'OR';
   }>): Promise<any> {
+    assertValidItemtype(itemtype);
     await this.ensureSession();
 
     const params = new URLSearchParams();
