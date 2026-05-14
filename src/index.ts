@@ -1054,6 +1054,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (!glpiClient) {
+    throw new McpError(ErrorCode.InternalError, 'GLPI client not initialized — check GLPI_URL and credentials');
+  }
+
   const { name, arguments: args } = request.params;
 
   try {
@@ -1148,7 +1152,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const id = args?.id as number;
         if (!id) throw new McpError(ErrorCode.InvalidParams, 'Ticket ID is required');
 
-        await glpiClient.deleteTicket(id, args?.force as boolean);
+        await glpiClient.deleteTicket(id, args?.force === true);
 
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Ticket ${id} deleted` }, null, 2) }],
@@ -1465,7 +1469,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const id = args?.id as number;
         if (!id) throw new McpError(ErrorCode.InvalidParams, 'Computer ID is required');
 
-        await glpiClient.deleteComputer(id, args?.force as boolean);
+        await glpiClient.deleteComputer(id, args?.force === true);
 
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Computer ${id} deleted` }, null, 2) }],

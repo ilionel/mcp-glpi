@@ -9,6 +9,8 @@ export interface GlpiConfig {
   userToken?: string;
   username?: string;
   password?: string;
+  /** HTTP request timeout in milliseconds (default: 30 000) */
+  timeout?: number;
 }
 
 // ==================== INTERFACES ====================
@@ -383,11 +385,18 @@ export class GlpiClient {
   }
 
   private async fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
-    let resp = await fetch(url, options);
+    const timeoutMs = this.config.timeout ?? 30000;
+    const doFetch = (opts: RequestInit): Promise<Response> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+    };
+
+    let resp = await doFetch(options);
     if (resp.status === 401 && this.sessionToken) {
       this.sessionToken = null;
       await this.initSession();
-      resp = await fetch(url, { ...options, headers: this.getHeaders() });
+      resp = await doFetch({ ...options, headers: this.getHeaders() });
     }
     return resp;
   }
