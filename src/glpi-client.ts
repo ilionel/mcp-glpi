@@ -1231,6 +1231,32 @@ export class GlpiClient {
 
   // ==================== STATISTICS ====================
 
+  /** Returns totalcount from GLPI search API without fetching item data. */
+  private async searchCount(itemtype: string, statusValue?: number): Promise<number> {
+    assertValidItemtype(itemtype);
+    await this.ensureSession();
+
+    const params = new URLSearchParams({ range: '0-0' });
+    if (statusValue !== undefined) {
+      // field 12 = status in GLPI Ticket search
+      params.append('criteria[0][field]', '12');
+      params.append('criteria[0][searchtype]', 'equals');
+      params.append('criteria[0][value]', String(statusValue));
+    }
+
+    const response = await this.fetchWithRetry(
+      `${this.config.url}/apirest.php/search/${itemtype}?${params.toString()}`,
+      { method: 'GET', headers: this.getHeaders() },
+    );
+
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Failed to count ${itemtype}: ${response.status}`);
+    }
+
+    const result = await response.json() as { totalcount?: number };
+    return result.totalcount ?? 0;
+  }
+
   async getTicketStats(): Promise<{
     total: number;
     new: number;
@@ -1239,18 +1265,17 @@ export class GlpiClient {
     solved: number;
     closed: number;
   }> {
-    await this.ensureSession();
+    const [total, s1, s2, s3, s4, s5, s6] = await Promise.all([
+      this.searchCount('Ticket'),
+      this.searchCount('Ticket', 1),
+      this.searchCount('Ticket', 2),
+      this.searchCount('Ticket', 3),
+      this.searchCount('Ticket', 4),
+      this.searchCount('Ticket', 5),
+      this.searchCount('Ticket', 6),
+    ]);
 
-    const tickets = await this.getTickets({ range: '0-9999' });
-
-    return {
-      total: tickets.length,
-      new: tickets.filter(t => t.status === 1).length,
-      processing: tickets.filter(t => t.status === 2 || t.status === 3).length,
-      pending: tickets.filter(t => t.status === 4).length,
-      solved: tickets.filter(t => t.status === 5).length,
-      closed: tickets.filter(t => t.status === 6).length,
-    };
+    return { total, new: s1, processing: s2 + s3, pending: s4, solved: s5, closed: s6 };
   }
 
   async getAssetStats(): Promise<{
@@ -1261,25 +1286,16 @@ export class GlpiClient {
     phones: number;
     softwares: number;
   }> {
-    await this.ensureSession();
-
     const [computers, monitors, printers, networkEquipments, phones, softwares] = await Promise.all([
-      this.getComputers({ range: '0-9999', is_deleted: false }),
-      this.getMonitors({ range: '0-9999', is_deleted: false }),
-      this.getPrinters({ range: '0-9999', is_deleted: false }),
-      this.getNetworkEquipments({ range: '0-9999', is_deleted: false }),
-      this.getPhones({ range: '0-9999', is_deleted: false }),
-      this.getSoftwares({ range: '0-9999', is_deleted: false }),
+      this.searchCount('Computer'),
+      this.searchCount('Monitor'),
+      this.searchCount('Printer'),
+      this.searchCount('NetworkEquipment'),
+      this.searchCount('Phone'),
+      this.searchCount('Software'),
     ]);
 
-    return {
-      computers: computers.length,
-      monitors: monitors.length,
-      printers: printers.length,
-      networkEquipments: networkEquipments.length,
-      phones: phones.length,
-      softwares: softwares.length,
-    };
+    return { computers, monitors, printers, networkEquipments, phones, softwares };
   }
 
   // ==================== SESSION INFO ====================
