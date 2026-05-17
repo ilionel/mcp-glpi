@@ -2292,17 +2292,34 @@ async function startHttp(): Promise<void> {
     });
   }
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => crypto.randomUUID(),
-  });
+  // Per-session transport: a fresh transport+McpServer connection is created for each MCP
+  // session. This is the correct HTTP multi-session pattern — reusing a single transport
+  // across sessions causes the SDK's SSE stream to stop closing after the first DELETE.
+  let activeTransport: StreamableHTTPServerTransport | null = null;
 
-  await server.connect(transport);
+  async function connectNewTransport(): Promise<void> {
+    activeTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
+      onsessionclosed: () => { activeTransport = null; },
+    });
+    await server.connect(activeTransport);
+  }
+
+  await connectNewTransport();
   console.error(`MCP GLPI Server v2.0 listening on http://0.0.0.0:${port}/mcp`);
 
-  // Single endpoint — handles GET (SSE stream), POST (requests), DELETE (session close)
+  // Single endpoint — handles GET (SSE stream), POST (requests), DELETE (session close).
+  // Creates a new transport on each new initialize (after previous session ended).
   app.all('/mcp', async (req, res) => {
     try {
-      await transport.handleRequest(req, res, req.body);
+      if (req.method === 'POST' && req.body?.method === 'initialize' && !activeTransport) {
+        await connectNewTransport();
+      }
+      if (!activeTransport) {
+        res.status(400).json({ error: 'No active session' });
+        return;
+      }
+      await activeTransport.handleRequest(req, res, req.body);
     } catch (error) {
       if (!res.headersSent) {
         res.status(500).json({ error: 'Internal server error' });

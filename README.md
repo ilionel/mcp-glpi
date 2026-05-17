@@ -1,3 +1,7 @@
+[Based on https://github.com/GMS64260/mcp-glpi](https://github.com/GMS64260/mcp-glpi)
+
+Various bug fixes, security improvements, and a Dockerfile have been added.
+
 # MCP Server for GLPI v2.0
 
 A comprehensive Model Context Protocol (MCP) server providing full integration with GLPI (Gestionnaire Libre de Parc Informatique) for AI assistants like Claude.
@@ -272,7 +276,7 @@ Once configured, you can ask Claude to:
 ### Building from source
 
 ```bash
-git clone https://github.com/GMS64260/mcp-glpi.git
+git clone https://github.com/ilionel/mcp-glpi.git
 cd mcp-glpi
 npm install
 npm run build
